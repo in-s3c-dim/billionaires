@@ -1,0 +1,43 @@
+name: Upload SARIF files to Code Scanning
+
+on:
+  workflow_dispatch:
+    inputs:
+      sarif_file:
+        description: "Path to SARIF file under sarif/"
+        required: true
+        default: "codeql-output.sarif"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  upload-sarif:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate SARIF path
+        run: |
+          set -euo pipefail
+          FILE="${{ inputs.sarif_file }}"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::SARIF file not found: $FILE"
+            echo "Files available under sarif/:"
+            ls -lah sarif || true
+            exit 1
+          fi
+
+      - name: Upload to Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ inputs.sarif_file }}
+          
+      - name: Upload SARIF as an Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarif-file
+          path: ${{ inputs.sarif_file }}
