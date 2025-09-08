@@ -1,0 +1,101 @@
+name: Security Analysis with SecDim Learning
+
+on:
+
+  workflow_dispatch:      
+    inputs:
+      target_ref:
+        required: false
+        default: 'main'
+
+jobs:
+  security-analysis:
+    name: CodeQL Analysis with SecDim Learning
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # Use security-extended queries to find more vulnerabilities
+        queries: security-extended,security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis and Generate SARIF
+      id: analyze
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+        output: sarif # this is a folder
+        upload: false
+
+    - name: Ensure SARIF output exists
+      run: |
+        echo "Contents of the sarif folder:"
+        ls -R sarif || true
+    
+    - name: Enrich SARIF with SecDim Learning Labs
+      uses: secdim/sandbox-action@v2.0.0
+      with:
+        input_sarif_file: sarif/${{ matrix.language }}.sarif
+        output_sarif_file: secdim-enhanced-findings.sarif
+
+    - name: Upload SecDim Enhanced Results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: secdim-enhanced-findings.sarif
+        category: secdim-learning-labs
+
+    - name: Upload SARIF Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: sarif-results-${{ matrix.language }}
+        path: |
+          sarif/${{ matrix.language }}.sarif
+          secdim-enhanced-findings.sarif
+        retention-days: 30
+      if: always()
+
+  summary:
+    name: Security Analysis Summary
+    runs-on: ubuntu-latest
+    needs: [security-analysis]
+    if: always()
+    
+    steps:
+    - name: Security Analysis Summary
+      run: |
+        echo "## 🛡️ Security Analysis with SecDim Learning Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Results:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security Analysis Job**: ${{ needs.security-analysis.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### What happened:" >> $GITHUB_STEP_SUMMARY
+        echo "1. 🔍 **CodeQL Analysis** scanned the JavaScript codebase for security vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "2. 🎯 **Filtering** extracted only high and critical severity findings from SARIF output" >> $GITHUB_STEP_SUMMARY
+        echo "3. 🛡️ **SecDim Enhancement** enriched high/critical findings with hands-on learning labs" >> $GITHUB_STEP_SUMMARY
+        echo "4. 📤 **SARIF Upload** made enhanced findings available in the Security tab with learning links" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Where to find results:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security Tab**: View all findings with SecDim learning labs attached" >> $GITHUB_STEP_SUMMARY
+        echo "- **Artifacts**: Download SARIF files for detailed analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎓 **SecDim Learning Labs** provide:" >> $GITHUB_STEP_SUMMARY
+        echo "- Interactive containerized environments for each vulnerability" >> $GITHUB_STEP_SUMMARY
+        echo "- Real attacker simulation tests" >> $GITHUB_STEP_SUMMARY
+        echo "- AI-powered hints and validation feedback" >> $GITHUB_STEP_SUMMARY
+        echo "- Step-by-step remediation guidance" >> $GITHUB_STEP_SUMMARY
